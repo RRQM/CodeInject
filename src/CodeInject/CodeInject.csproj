@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+	  <!-- Development Dependencies Only -->
+	  <DevelopmentDependency>true</DevelopmentDependency>
+	  <IncludeSymbols>false</IncludeSymbols>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CodeInjectSourceGenerator\CodeInjectSourceGenerator.csproj" PrivateAssets="all" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+  </ItemGroup>
+
+	<ItemGroup>
+		<None Include="\tools\*.ps1" PackagePath="tools" Pack="true" Visible="false" />
+		<None Include="..\CodeInjectSourceGenerator\bin\$(Configuration)\netstandard2.0\CodeInjectSourceGenerator.dll" PackagePath="analyzers\dotnet\cs" Pack="true" Visible="false" />
+	</ItemGroup>
+
+</Project>

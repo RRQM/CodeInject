@@ -8,8 +8,6 @@
 		<Copyright>Copyright © 2025 若汝棋茗</Copyright>
 		<PackageProjectUrl>https://github.com/RRQM/CodeInject</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/RRQM/CodeInject</RepositoryUrl>
-		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<Authors>若汝棋茗</Authors>
 		<BaseOutputPath>..\..\Build</BaseOutputPath>
 		<NoWarn>IDE0290;IDE0090;IDE0305;IDE0028;IDE0300;IDE0130;IDE0057</NoWarn>

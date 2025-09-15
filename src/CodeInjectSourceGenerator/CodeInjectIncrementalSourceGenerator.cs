@@ -1,3 +1,15 @@
+// ------------------------------------------------------------------------------
+// 此代码版权（除特别声明或在XREF结尾的命名空间的代码）归作者本人若汝棋茗所有
+// 源代码使用协议遵循本仓库的开源协议及附加协议，若本仓库没有设置，则按MIT开源协议授权
+// CSDN博客：https://blog.csdn.net/qq_40374647
+// 哔哩哔哩视频：https://space.bilibili.com/94253567
+// Gitee源代码仓库：https://gitee.com/RRQM_Home
+// Github源代码仓库：https://github.com/RRQM
+// API首页：https://touchsocket.net/
+// 交流QQ群：234762506
+// 感谢您的下载和使用
+// ------------------------------------------------------------------------------
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -5,9 +17,9 @@ using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace CodeInject;
@@ -17,16 +29,28 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        // 获取项目中的源文件
+        var sourceFiles = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                predicate: static (s, _) => s is CompilationUnitSyntax,
+                transform: static (ctx, _) => ctx)
+            .Where(static ctx => ctx.Node is CompilationUnitSyntax);
+
         // 添加 attribute 源码到消费项目
-        context.RegisterPostInitializationOutput(ctx => ctx.AddSource(
-            "RegionInjectAttribute.g.cs",
-            SourceText.From(AttributeSource, Encoding.UTF8)));
+        context.RegisterSourceOutput(sourceFiles.Collect(), (ctx, sources) =>
+        {
+            var attributeSource = GetAttributeSourceFromEmbeddedResource();
+            if (!string.IsNullOrEmpty(attributeSource))
+            {
+                ctx.AddSource("RegionInjectAttribute.g.cs", SourceText.From(attributeSource, Encoding.UTF8));
+            }
+        });
 
         // 获取所有的 AdditionalFiles
-        IncrementalValuesProvider<AdditionalText> additionalFiles = context.AdditionalTextsProvider;
+        var additionalFiles = context.AdditionalTextsProvider;
 
         // 查找所有标记了 RegionInjectAttribute 的类
-        IncrementalValuesProvider<ClassToGenerate> classDeclarations = context.SyntaxProvider
+        var classDeclarations = context.SyntaxProvider
             .CreateSyntaxProvider(
                 predicate: static (s, _) => IsSyntaxTargetForGeneration(s),
                 transform: static (ctx, _) => GetSemanticTargetForGeneration(ctx))
@@ -39,10 +63,69 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
             static (spc, source) => Execute(source.Left, source.Right, spc));
     }
 
-    static bool IsSyntaxTargetForGeneration(SyntaxNode node)
+    /// <summary>
+    /// 获取程序集中的嵌入资源内容
+    /// </summary>
+    /// <param name="resourceName">资源名称，如果为null则返回所有资源名称</param>
+    /// <returns>资源内容或资源名称列表</returns>
+    private static string GetEmbeddedResourceContent(string resourceName = null)
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var resourceNames = assembly.GetManifestResourceNames();
+
+        // 如果没有指定资源名称，返回所有资源名称
+        if (string.IsNullOrEmpty(resourceName))
+        {
+            return string.Join(Environment.NewLine, resourceNames);
+        }
+
+        // 查找匹配的资源
+        var targetResource = resourceNames.FirstOrDefault(name =>
+            name.Equals(resourceName, StringComparison.OrdinalIgnoreCase) ||
+            name.EndsWith($".{resourceName}", StringComparison.OrdinalIgnoreCase));
+
+        if (string.IsNullOrEmpty(targetResource))
+        {
+            return null;
+        }
+
+        try
+        {
+            using (var stream = assembly.GetManifestResourceStream(targetResource))
+            {
+                if (stream == null)
+                    return null;
+
+                using (var reader = new StreamReader(stream, Encoding.UTF8))
+                {
+                    return reader.ReadToEnd();
+                }
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string GetAttributeSourceFromEmbeddedResource()
+    {
+        // 尝试从嵌入资源中获取 RegionInjectAttribute 的源代码
+        var resourceContent = GetEmbeddedResourceContent("RegionInjectAttribute.cs");
+
+        // 如果找不到嵌入资源，使用默认的源代码
+        if (string.IsNullOrEmpty(resourceContent))
+        {
+            return DefaultAttributeSource;
+        }
+
+        return resourceContent;
+    }
+
+    private static bool IsSyntaxTargetForGeneration(SyntaxNode node)
         => node is ClassDeclarationSyntax c && c.AttributeLists.Count > 0;
 
-    static ClassToGenerate GetSemanticTargetForGeneration(GeneratorSyntaxContext context)
+    private static ClassToGenerate GetSemanticTargetForGeneration(GeneratorSyntaxContext context)
     {
         try
         {
@@ -75,7 +158,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
                 // 从构造函数参数获取占位符
                 if (attributeData.ConstructorArguments.Length > 2)
                 {
-                    for (int i = 2; i < attributeData.ConstructorArguments.Length; i++)
+                    for (var i = 2; i < attributeData.ConstructorArguments.Length; i++)
                     {
                         var value = attributeData.ConstructorArguments[i].Value?.ToString();
                         if (!string.IsNullOrEmpty(value))
@@ -123,7 +206,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         }
     }
 
-    static string GetNamespace(ClassDeclarationSyntax classDeclaration)
+    private static string GetNamespace(ClassDeclarationSyntax classDeclaration)
     {
         var namespaceDeclaration = classDeclaration.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
         if (namespaceDeclaration != null)
@@ -136,7 +219,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         return string.Empty;
     }
 
-    static void Execute(ImmutableArray<ClassToGenerate> classes, ImmutableArray<AdditionalText> additionalFiles, SourceProductionContext context)
+    private static void Execute(ImmutableArray<ClassToGenerate> classes, ImmutableArray<AdditionalText> additionalFiles, SourceProductionContext context)
     {
         if (classes.IsDefaultOrEmpty)
             return;
@@ -151,7 +234,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         }
     }
 
-    static string GenerateClass(ClassToGenerate classInfo, ImmutableArray<AdditionalText> additionalFiles, SourceProductionContext context)
+    private static string GenerateClass(ClassToGenerate classInfo, ImmutableArray<AdditionalText> additionalFiles, SourceProductionContext context)
     {
         var sb = new StringBuilder();
 
@@ -192,7 +275,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
-    static string FormatInjectedCode(string code, string indentation)
+    private static string FormatInjectedCode(string code, string indentation)
     {
         if (string.IsNullOrEmpty(code))
             return string.Empty;
@@ -218,7 +301,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         return string.Join("\r\n", formattedLines);
     }
 
-    static string ExtractAndProcessRegion(RegionInjectData attribute, ImmutableArray<AdditionalText> additionalFiles, SourceProductionContext context)
+    private static string ExtractAndProcessRegion(RegionInjectData attribute, ImmutableArray<AdditionalText> additionalFiles, SourceProductionContext context)
     {
         // 首先尝试从 AdditionalFiles 中查找文件
         string fileContent = null;
@@ -226,18 +309,18 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
 
         // 规范化路径以进行比较
         var normalizedTargetPath = attribute.FilePath.Replace('\\', '/');
-        
+
         foreach (var file in additionalFiles)
         {
             var filePath = file.Path.Replace('\\', '/');
-            
+
             // 检查完整路径匹配
             if (filePath.EndsWith(normalizedTargetPath, StringComparison.OrdinalIgnoreCase))
             {
                 targetFile = file;
                 break;
             }
-            
+
             // 检查文件名匹配
             var fileName = Path.GetFileName(normalizedTargetPath);
             if (Path.GetFileName(filePath).Equals(fileName, StringComparison.OrdinalIgnoreCase))
@@ -301,17 +384,17 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         return ProcessPlaceholders(regionContent, attribute.Placeholders);
     }
 
-    static string ExtractRegion(string fileContent, string regionName)
+    private static string ExtractRegion(string fileContent, string regionName)
     {
         var lines = fileContent.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
         var regionStart = -1;
         var regionEnd = -1;
         var nestedLevel = 0;
 
-        for (int i = 0; i < lines.Length; i++)
+        for (var i = 0; i < lines.Length; i++)
         {
             var line = lines[i].Trim();
-            
+
             if (line.StartsWith("#region"))
             {
                 if (regionStart == -1 && line.Contains(regionName))
@@ -360,7 +443,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         return string.Join("\r\n", processedLines);
     }
 
-    static string ProcessPlaceholders(string content, string[] placeholders)
+    private static string ProcessPlaceholders(string content, string[] placeholders)
     {
         if (placeholders.Length == 0)
             return content;
@@ -368,7 +451,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         var result = content;
 
         // 处理成对的占位符 (key, value, key, value, ...)
-        for (int i = 0; i < placeholders.Length - 1; i += 2)
+        for (var i = 0; i < placeholders.Length - 1; i += 2)
         {
             if (i + 1 < placeholders.Length)
             {
@@ -386,7 +469,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         return result;
     }
 
-    private const string AttributeSource = @"
+    private const string DefaultAttributeSource = @"
 using System;
 
 namespace CodeInject
@@ -420,9 +503,9 @@ namespace CodeInject
 
         public ClassToGenerate(string name, string @namespace, RegionInjectData[] attributes)
         {
-            Name = name;
-            Namespace = @namespace;
-            Attributes = attributes;
+            this.Name = name;
+            this.Namespace = @namespace;
+            this.Attributes = attributes;
         }
     }
 
@@ -435,10 +518,10 @@ namespace CodeInject
 
         public RegionInjectData(string filePath, string regionName, string[] placeholders, Location location)
         {
-            FilePath = filePath;
-            RegionName = regionName;
-            Placeholders = placeholders;
-            Location = location;
+            this.FilePath = filePath;
+            this.RegionName = regionName;
+            this.Placeholders = placeholders;
+            this.Location = location;
         }
     }
 }

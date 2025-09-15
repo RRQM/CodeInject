@@ -43,6 +43,9 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         // 获取所有的 AdditionalFiles
         var additionalFiles = context.AdditionalTextsProvider;
 
+        // 获取编译信息（包含源文件）
+        var compilation = context.CompilationProvider;
+
         // 查找所有标记了 RegionInjectAttribute 的类
         var classDeclarations = context.SyntaxProvider
             .CreateSyntaxProvider(
@@ -50,11 +53,13 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
                 transform: static (ctx, _) => GetSemanticTargetForGeneration(ctx))
             .Where(static m => m is not null);
 
-        // 组合类声明和附加文件
-        var combined = classDeclarations.Collect().Combine(additionalFiles.Collect());
+        // 组合类声明、附加文件和编译信息
+        var combined = classDeclarations.Collect()
+            .Combine(additionalFiles.Collect())
+            .Combine(compilation);
 
         context.RegisterSourceOutput(combined,
-            static (spc, source) => Execute(source.Left, source.Right, spc));
+            static (spc, source) => Execute(source.Left.Left, source.Left.Right, source.Right, spc));
     }
 
     /// <summary>
@@ -144,15 +149,29 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
                     continue;
                 }
 
-                if (attributeData.ConstructorArguments.Length < 2)
+                string filePath = null;
+                string regionName = null;
+
+                // 处理不同的构造函数重载
+                if (attributeData.ConstructorArguments.Length >= 1)
                 {
-                    continue;
+                    var firstArg = attributeData.ConstructorArguments[0].Value?.ToString();
+                    
+                    if (attributeData.ConstructorArguments.Length == 1)
+                    {
+                        // 单参数构造函数: RegionInjectAttribute(regionName)
+                        regionName = firstArg;
+                        filePath = null; // 将搜索所有文件
+                    }
+                    else if (attributeData.ConstructorArguments.Length >= 2)
+                    {
+                        // 双参数或多参数构造函数: RegionInjectAttribute(filePath, regionName, ...)
+                        filePath = firstArg;
+                        regionName = attributeData.ConstructorArguments[1].Value?.ToString();
+                    }
                 }
 
-                var filePath = attributeData.ConstructorArguments[0].Value?.ToString();
-                var regionName = attributeData.ConstructorArguments[1].Value?.ToString();
-
-                if (string.IsNullOrEmpty(filePath) || string.IsNullOrEmpty(regionName))
+                if (string.IsNullOrEmpty(regionName))
                 {
                     continue;
                 }
@@ -160,14 +179,30 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
                 var placeholders = new List<string>();
 
                 // 从构造函数参数获取占位符
-                // 检查是否使用了带 params string[] 的构造函数
                 if (attributeData.ConstructorArguments.Length >= 3)
                 {
-                    // 第3个参数是 params string[] placeholders
+                    // 第3个参数可能是 params string[] placeholders
                     var placeholdersArg = attributeData.ConstructorArguments[2];
                     if (placeholdersArg.Kind == TypedConstantKind.Array && !placeholdersArg.IsNull)
                     {
                         var arrayValues = placeholdersArg.Values;
+                        foreach (var item in arrayValues)
+                        {
+                            var stringValue = item.Value?.ToString();
+                            if (!string.IsNullOrEmpty(stringValue))
+                            {
+                                placeholders.Add(stringValue);
+                            }
+                        }
+                    }
+                }
+                else if (attributeData.ConstructorArguments.Length == 2 && string.IsNullOrEmpty(filePath))
+                {
+                    // 可能是 RegionInjectAttribute(regionName, params string[] placeholders)
+                    var secondArg = attributeData.ConstructorArguments[1];
+                    if (secondArg.Kind == TypedConstantKind.Array && !secondArg.IsNull)
+                    {
+                        var arrayValues = secondArg.Values;
                         foreach (var item in arrayValues)
                         {
                             var stringValue = item.Value?.ToString();
@@ -243,7 +278,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         return string.Empty;
     }
 
-    private static void Execute(ImmutableArray<ClassToGenerate> classes, ImmutableArray<AdditionalText> additionalFiles, SourceProductionContext context)
+    private static void Execute(ImmutableArray<ClassToGenerate> classes, ImmutableArray<AdditionalText> additionalFiles, Compilation compilation, SourceProductionContext context)
     {
         if (classes.IsDefaultOrEmpty)
         {
@@ -252,7 +287,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
 
         foreach (var classToGenerate in classes)
         {
-            var source = GenerateClass(classToGenerate, additionalFiles, context);
+            var source = GenerateClass(classToGenerate, additionalFiles, compilation, context);
             if (!string.IsNullOrEmpty(source))
             {
                 context.AddSource($"{classToGenerate.Name}.g.cs", SourceText.From(source, Encoding.UTF8));
@@ -260,7 +295,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         }
     }
 
-    private static string GenerateClass(ClassToGenerate classInfo, ImmutableArray<AdditionalText> additionalFiles, SourceProductionContext context)
+    private static string GenerateClass(ClassToGenerate classInfo, ImmutableArray<AdditionalText> additionalFiles, Compilation compilation, SourceProductionContext context)
     {
         var sb = new StringBuilder();
 
@@ -279,8 +314,7 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
 
         foreach (var attribute in classInfo.Attributes)
         {
-            //Debugger.Launch();
-            var injectedCode = ExtractAndProcessRegion(attribute, additionalFiles, context);
+            var injectedCode = ExtractAndProcessRegion(attribute, additionalFiles, compilation, context);
             if (!string.IsNullOrEmpty(injectedCode))
             {
                 // 为注入的代码添加适当的缩进（类内部缩进 8 个空格）
@@ -327,89 +361,6 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         }
 
         return string.Join("\r\n", formattedLines);
-    }
-
-    private static string ExtractAndProcessRegion(RegionInjectData attribute, ImmutableArray<AdditionalText> additionalFiles, SourceProductionContext context)
-    {
-        // 首先尝试从 AdditionalFiles 中查找文件
-        string fileContent = null;
-        AdditionalText targetFile = null;
-
-        // 规范化路径以进行比较
-        var normalizedTargetPath = attribute.FilePath.Replace('\\', '/');
-
-        foreach (var file in additionalFiles)
-        {
-            var filePath = file.Path.Replace('\\', '/');
-
-            // 检查完整路径匹配
-            if (filePath.EndsWith(normalizedTargetPath, StringComparison.OrdinalIgnoreCase))
-            {
-                targetFile = file;
-                break;
-            }
-
-            // 检查文件名匹配
-            var fileName = Path.GetFileName(normalizedTargetPath);
-            if (Path.GetFileName(filePath).Equals(fileName, StringComparison.OrdinalIgnoreCase))
-            {
-                targetFile = file;
-                break;
-            }
-        }
-
-        if (targetFile != null)
-        {
-            try
-            {
-                var sourceText = targetFile.GetText(context.CancellationToken);
-                fileContent = sourceText?.ToString();
-            }
-            catch (Exception ex)
-            {
-                context.ReportDiagnostic(Diagnostic.Create(
-                    new DiagnosticDescriptor(
-                        "CRG003",
-                        "File read error",
-                        $"Error reading additional file '{targetFile.Path}': {ex.Message}",
-                        "CodeRegionGenerator",
-                        DiagnosticSeverity.Error,
-                        isEnabledByDefault: true),
-                    attribute.Location));
-                return string.Empty;
-            }
-        }
-
-        if (fileContent == null)
-        {
-            context.ReportDiagnostic(Diagnostic.Create(
-                new DiagnosticDescriptor(
-                    "CRG001",
-                    "Template file not found",
-                    $"Could not find template file: {attribute.FilePath}. Make sure the file is included as AdditionalFiles in the project that uses the source generator.",
-                    "CodeRegionGenerator",
-                    DiagnosticSeverity.Error,
-                    isEnabledByDefault: true),
-                attribute.Location));
-            return string.Empty;
-        }
-
-        var regionContent = ExtractRegion(fileContent, attribute.RegionName);
-        if (string.IsNullOrEmpty(regionContent))
-        {
-            context.ReportDiagnostic(Diagnostic.Create(
-                new DiagnosticDescriptor(
-                    "CRG002",
-                    "Region not found",
-                    $"Could not find region '{attribute.RegionName}' in file '{attribute.FilePath}'",
-                    "CodeRegionGenerator",
-                    DiagnosticSeverity.Error,
-                    isEnabledByDefault: true),
-                attribute.Location));
-            return string.Empty;
-        }
-
-        return ProcessPlaceholders(regionContent, attribute.Placeholders);
     }
 
     private static string ExtractRegion(string fileContent, string regionName)
@@ -499,6 +450,249 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
         return result;
     }
 
+    private static string ExtractAndProcessRegion(RegionInjectData attribute, ImmutableArray<AdditionalText> additionalFiles, Compilation compilation, SourceProductionContext context)
+    {
+        string fileContent = null;
+        string foundFilePath = null;
+
+        // 如果指定了文件路径，优先查找指定文件
+        if (!string.IsNullOrEmpty(attribute.FilePath))
+        {
+            var result = FindFileContent(attribute.FilePath, additionalFiles, compilation, context);
+            fileContent = result.content;
+            foundFilePath = result.filePath;
+        }
+        else
+        {
+            // 如果没有指定文件路径，搜索所有文件中包含指定区域的文件
+            var result = SearchAllFilesForRegion(attribute.RegionName, additionalFiles, compilation, context);
+            fileContent = result.content;
+            foundFilePath = result.filePath;
+        }
+
+        if (fileContent == null)
+        {
+            var errorMessage = string.IsNullOrEmpty(attribute.FilePath) 
+                ? $"Could not find region '{attribute.RegionName}' in any available files. Make sure files containing the region are included as AdditionalFiles or source files in the project."
+                : $"Could not find template file: {attribute.FilePath}. Make sure the file is included as AdditionalFiles in the project that uses the source generator.";
+
+            context.ReportDiagnostic(Diagnostic.Create(
+                new DiagnosticDescriptor(
+                    "CRG001",
+                    "Template file or region not found",
+                    errorMessage,
+                    "CodeRegionGenerator",
+                    DiagnosticSeverity.Error,
+                    isEnabledByDefault: true),
+                attribute.Location));
+            return string.Empty;
+        }
+
+        var regionContent = ExtractRegion(fileContent, attribute.RegionName);
+        if (string.IsNullOrEmpty(regionContent))
+        {
+            var targetInfo = string.IsNullOrEmpty(attribute.FilePath) ? $"found file '{foundFilePath}'" : $"file '{attribute.FilePath}'";
+            context.ReportDiagnostic(Diagnostic.Create(
+                new DiagnosticDescriptor(
+                    "CRG002",
+                    "Region not found",
+                    $"Could not find region '{attribute.RegionName}' in {targetInfo}",
+                    "CodeRegionGenerator",
+                    DiagnosticSeverity.Error,
+                    isEnabledByDefault: true),
+                attribute.Location));
+            return string.Empty;
+        }
+
+        return ProcessPlaceholders(regionContent, attribute.Placeholders);
+    }
+
+    private static (string content, string filePath) FindFileContent(string targetFilePath, ImmutableArray<AdditionalText> additionalFiles, Compilation compilation, SourceProductionContext context)
+    {
+        // 首先在 AdditionalFiles 中查找
+        var normalizedTargetPath = targetFilePath.Replace('\\', '/');
+
+        foreach (var file in additionalFiles)
+        {
+            var filePath = file.Path.Replace('\\', '/');
+
+            // 检查完整路径匹配
+            if (filePath.EndsWith(normalizedTargetPath, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var sourceText = file.GetText(context.CancellationToken);
+                    return (sourceText?.ToString(), file.Path);
+                }
+                catch (Exception ex)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        new DiagnosticDescriptor(
+                            "CRG003",
+                            "File read error",
+                            $"Error reading additional file '{file.Path}': {ex.Message}",
+                            "CodeRegionGenerator",
+                            DiagnosticSeverity.Error,
+                            isEnabledByDefault: true),
+                        Location.None));
+                    continue;
+                }
+            }
+
+            // 检查文件名匹配
+            var fileName = Path.GetFileName(normalizedTargetPath);
+            if (Path.GetFileName(filePath).Equals(fileName, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var sourceText = file.GetText(context.CancellationToken);
+                    return (sourceText?.ToString(), file.Path);
+                }
+                catch (Exception ex)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        new DiagnosticDescriptor(
+                            "CRG003",
+                            "File read error",
+                            $"Error reading additional file '{file.Path}': {ex.Message}",
+                            "CodeRegionGenerator",
+                            DiagnosticSeverity.Error,
+                            isEnabledByDefault: true),
+                        Location.None));
+                    continue;
+                }
+            }
+        }
+
+        // 然后在编译的源文件中查找
+        foreach (var syntaxTree in compilation.SyntaxTrees)
+        {
+            var filePath = syntaxTree.FilePath.Replace('\\', '/');
+            
+            if (filePath.EndsWith(normalizedTargetPath, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var sourceText = syntaxTree.GetText(context.CancellationToken);
+                    return (sourceText?.ToString(), syntaxTree.FilePath);
+                }
+                catch (Exception ex)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        new DiagnosticDescriptor(
+                            "CRG003",
+                            "File read error",
+                            $"Error reading source file '{syntaxTree.FilePath}': {ex.Message}",
+                            "CodeRegionGenerator",
+                            DiagnosticSeverity.Error,
+                            isEnabledByDefault: true),
+                        Location.None));
+                    continue;
+                }
+            }
+
+            var fileName = Path.GetFileName(normalizedTargetPath);
+            if (Path.GetFileName(filePath).Equals(fileName, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var sourceText = syntaxTree.GetText(context.CancellationToken);
+                    return (sourceText?.ToString(), syntaxTree.FilePath);
+                }
+                catch (Exception ex)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                        new DiagnosticDescriptor(
+                            "CRG003",
+                            "File read error",
+                            $"Error reading source file '{syntaxTree.FilePath}': {ex.Message}",
+                            "CodeRegionGenerator",
+                            DiagnosticSeverity.Error,
+                            isEnabledByDefault: true),
+                        Location.None));
+                    continue;
+                }
+            }
+        }
+
+        return (null, null);
+    }
+
+    private static (string content, string filePath) SearchAllFilesForRegion(string regionName, ImmutableArray<AdditionalText> additionalFiles, Compilation compilation, SourceProductionContext context)
+    {
+        // 首先搜索 AdditionalFiles
+        foreach (var file in additionalFiles)
+        {
+            try
+            {
+                var sourceText = file.GetText(context.CancellationToken);
+                var content = sourceText?.ToString();
+                if (!string.IsNullOrEmpty(content) && ContainsRegion(content, regionName))
+                {
+                    return (content, file.Path);
+                }
+            }
+            catch (Exception ex)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    new DiagnosticDescriptor(
+                        "CRG003",
+                        "File read error",
+                        $"Error reading additional file '{file.Path}': {ex.Message}",
+                        "CodeRegionGenerator",
+                        DiagnosticSeverity.Warning,
+                        isEnabledByDefault: true),
+                    Location.None));
+                continue;
+            }
+        }
+
+        // 然后搜索编译的源文件
+        foreach (var syntaxTree in compilation.SyntaxTrees)
+        {
+            try
+            {
+                var sourceText = syntaxTree.GetText(context.CancellationToken);
+                var content = sourceText?.ToString();
+                if (!string.IsNullOrEmpty(content) && ContainsRegion(content, regionName))
+                {
+                    return (content, syntaxTree.FilePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    new DiagnosticDescriptor(
+                        "CRG003",
+                        "File read error",
+                        $"Error reading source file '{syntaxTree.FilePath}': {ex.Message}",
+                        "CodeRegionGenerator",
+                        DiagnosticSeverity.Warning,
+                        isEnabledByDefault: true),
+                    Location.None));
+                continue;
+            }
+        }
+
+        return (null, null);
+    }
+
+    private static bool ContainsRegion(string fileContent, string regionName)
+    {
+        var lines = fileContent.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
+        
+        foreach (var line in lines)
+        {
+            var trimmedLine = line.Trim();
+            if (trimmedLine.StartsWith("#region") && trimmedLine.Contains(regionName))
+            {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
     private const string DefaultAttributeSource = @"
 using System;
 
@@ -510,6 +704,18 @@ namespace CodeInject
         public string FilePath { get; }
         public string RegionName { get; }
         public string[] Placeholders { get; set; } = new string[0];
+        
+        public RegionInjectAttribute(string regionName)
+        {
+            FilePath = null;
+            RegionName = regionName ?? throw new ArgumentNullException(nameof(regionName));
+        }
+        
+        public RegionInjectAttribute(string regionName, params string[] placeholders)
+            : this(regionName)
+        {
+            Placeholders = placeholders ?? new string[0];
+        }
         
         public RegionInjectAttribute(string filePath, string regionName)
         {

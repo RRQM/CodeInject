@@ -61,11 +61,10 @@ public async Task<{ReturnType}> Create{EntityName}Async({ReturnType} entity)
 ### 2. Apply the attribute
 
 ```csharp
-using CodeRegionSourceGenerator;
+using CodeInject;
 
-[RegionInject("Templates/ApiTemplate.cs", "ApiMethods", 
-    "ReturnType", "User", 
-    "EntityName", "User")]
+[RegionInject(FilePath = "Templates/ApiTemplate.cs", RegionName = "ApiMethods", 
+    Placeholders = new[] { "ReturnType", "User", "EntityName", "User" })]
 public partial class UserService
 {
     private readonly IRepository _repository;
@@ -105,19 +104,34 @@ partial class UserService
 ### Multiple Injections
 
 ```csharp
-[RegionInject("Templates/CrudTemplate.cs", "CreateMethods", "Entity", "Product")]
-[RegionInject("Templates/CrudTemplate.cs", "UpdateMethods", "Entity", "Product")]
-[RegionInject("Templates/ValidationTemplate.cs", "Validators", "Type", "Product")]
+[RegionInject(FilePath = "Templates/CrudTemplate.cs", RegionName = "CreateMethods", 
+    Placeholders = new[] { "Entity", "Product" })]
+[RegionInject(FilePath = "Templates/CrudTemplate.cs", RegionName = "UpdateMethods", 
+    Placeholders = new[] { "Entity", "Product" })]
+[RegionInject(FilePath = "Templates/ValidationTemplate.cs", RegionName = "Validators", 
+    Placeholders = new[] { "Type", "Product" })]
 public partial class ProductService
 {
     // Multiple code regions will be injected
 }
 ```
 
-### Using Placeholders Property
+### Search All Files for Region
+
+If you don't specify the `FilePath`, the generator will search all available files for the specified region:
 
 ```csharp
-[RegionInject("Templates/ApiTemplate.cs", "ApiMethods", 
+[RegionInject(RegionName = "CommonMethods")]
+public partial class BaseService
+{
+    // Generator will search all files for "CommonMethods" region
+}
+```
+
+### Using Property Initializers
+
+```csharp
+[RegionInject(FilePath = "Templates/ApiTemplate.cs", RegionName = "ApiMethods", 
     Placeholders = new[] { "ReturnType", "Order", "EntityName", "Order" })]
 public partial class OrderService
 {
@@ -176,6 +190,16 @@ public async Task<ActionResult<{EntityType}>> Create{EntityName}({EntityType} {e
 #endregion
 ```
 
+Usage:
+```csharp
+[RegionInject(FilePath = "Templates/ControllerTemplate.cs", RegionName = "CrudActions",
+    Placeholders = new[] { "EntityType", "Product", "EntityName", "Product", "entityName", "product" })]
+public partial class ProductController : ControllerBase
+{
+    // Generated CRUD actions will be injected here
+}
+```
+
 ### 2. Repository Pattern Templates
 
 ```csharp
@@ -200,6 +224,16 @@ public async Task<{EntityType}> Create{EntityName}Async({EntityType} entity)
 #endregion
 ```
 
+Usage:
+```csharp
+[RegionInject(FilePath = "Templates/RepositoryTemplate.cs", RegionName = "RepositoryMethods",
+    Placeholders = new[] { "EntityType", "User", "EntityName", "User" })]
+public partial class UserRepository
+{
+    // Generated repository methods will be injected here
+}
+```
+
 ## 🔍 Diagnostics
 
 The source generator provides the following diagnostic information:
@@ -212,8 +246,9 @@ The source generator provides the following diagnostic information:
 
 1. **Organize templates**: Keep template files in a dedicated `Templates` folder
 2. **Naming conventions**: Use descriptive region names like `CrudMethods`, `ValidationRules`
-3. **Placeholder naming**: Use uppercase placeholder names like `ENTITY_NAME`, `RETURN_TYPE`
+3. **Placeholder naming**: Use consistent placeholder names like `EntityType`, `EntityName`
 4. **Modularization**: Group related functionality into different regions
+5. **Property-based syntax**: Use the new property-based initialization for better readability
 
 ## 📋 Requirements
 

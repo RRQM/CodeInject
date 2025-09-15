@@ -151,9 +151,39 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
 
                 string filePath = null;
                 string regionName = null;
+                var placeholders = new List<string>();
 
-                // 处理不同的构造函数重载
-                if (attributeData.ConstructorArguments.Length >= 1)
+                // 首先从命名参数（属性）获取值
+                foreach (var namedArgument in attributeData.NamedArguments)
+                {
+                    switch (namedArgument.Key)
+                    {
+                        case "FilePath":
+                            filePath = namedArgument.Value.Value?.ToString();
+                            break;
+                        case "RegionName":
+                            regionName = namedArgument.Value.Value?.ToString();
+                            break;
+                        case "Placeholders":
+                            var value = namedArgument.Value;
+                            if (value.Kind == TypedConstantKind.Array && !value.IsNull)
+                            {
+                                var arrayValues = value.Values;
+                                foreach (var item in arrayValues)
+                                {
+                                    var stringValue = item.Value?.ToString();
+                                    if (!string.IsNullOrEmpty(stringValue))
+                                    {
+                                        placeholders.Add(stringValue);
+                                    }
+                                }
+                            }
+                            break;
+                    }
+                }
+
+                // 如果没有从属性获取到值，尝试从构造函数参数获取（向后兼容）
+                if (string.IsNullOrEmpty(regionName) && attributeData.ConstructorArguments.Length >= 1)
                 {
                     var firstArg = attributeData.ConstructorArguments[0].Value?.ToString();
                     
@@ -169,62 +199,34 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
                         filePath = firstArg;
                         regionName = attributeData.ConstructorArguments[1].Value?.ToString();
                     }
-                }
 
-                if (string.IsNullOrEmpty(regionName))
-                {
-                    continue;
-                }
-
-                var placeholders = new List<string>();
-
-                // 从构造函数参数获取占位符
-                if (attributeData.ConstructorArguments.Length >= 3)
-                {
-                    // 第3个参数可能是 params string[] placeholders
-                    var placeholdersArg = attributeData.ConstructorArguments[2];
-                    if (placeholdersArg.Kind == TypedConstantKind.Array && !placeholdersArg.IsNull)
+                    // 从构造函数参数获取占位符（如果属性中没有设置）
+                    if (placeholders.Count == 0)
                     {
-                        var arrayValues = placeholdersArg.Values;
-                        foreach (var item in arrayValues)
+                        if (attributeData.ConstructorArguments.Length >= 3)
                         {
-                            var stringValue = item.Value?.ToString();
-                            if (!string.IsNullOrEmpty(stringValue))
+                            // 第3个参数可能是 params string[] placeholders
+                            var placeholdersArg = attributeData.ConstructorArguments[2];
+                            if (placeholdersArg.Kind == TypedConstantKind.Array && !placeholdersArg.IsNull)
                             {
-                                placeholders.Add(stringValue);
+                                var arrayValues = placeholdersArg.Values;
+                                foreach (var item in arrayValues)
+                                {
+                                    var stringValue = item.Value?.ToString();
+                                    if (!string.IsNullOrEmpty(stringValue))
+                                    {
+                                        placeholders.Add(stringValue);
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-                else if (attributeData.ConstructorArguments.Length == 2 && string.IsNullOrEmpty(filePath))
-                {
-                    // 可能是 RegionInjectAttribute(regionName, params string[] placeholders)
-                    var secondArg = attributeData.ConstructorArguments[1];
-                    if (secondArg.Kind == TypedConstantKind.Array && !secondArg.IsNull)
-                    {
-                        var arrayValues = secondArg.Values;
-                        foreach (var item in arrayValues)
+                        else if (attributeData.ConstructorArguments.Length == 2 && string.IsNullOrEmpty(filePath))
                         {
-                            var stringValue = item.Value?.ToString();
-                            if (!string.IsNullOrEmpty(stringValue))
+                            // 可能是 RegionInjectAttribute(regionName, params string[] placeholders)
+                            var secondArg = attributeData.ConstructorArguments[1];
+                            if (secondArg.Kind == TypedConstantKind.Array && !secondArg.IsNull)
                             {
-                                placeholders.Add(stringValue);
-                            }
-                        }
-                    }
-                }
-
-                // 如果构造函数中没有占位符，再从 Placeholders 属性获取
-                if (placeholders.Count == 0)
-                {
-                    foreach (var namedArgument in attributeData.NamedArguments)
-                    {
-                        if (namedArgument.Key == "Placeholders")
-                        {
-                            var value = namedArgument.Value;
-                            if (value.Kind == TypedConstantKind.Array && !value.IsNull)
-                            {
-                                var arrayValues = value.Values;
+                                var arrayValues = secondArg.Values;
                                 foreach (var item in arrayValues)
                                 {
                                     var stringValue = item.Value?.ToString();
@@ -236,6 +238,11 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
                             }
                         }
                     }
+                }
+
+                if (string.IsNullOrEmpty(regionName))
+                {
+                    continue;
                 }
 
                 // 获取属性的位置信息
@@ -701,32 +708,12 @@ namespace CodeInject
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     public class RegionInjectAttribute : Attribute
     {
-        public string FilePath { get; }
-        public string RegionName { get; }
+        public string FilePath { get; set; }
+        public string RegionName { get; set; }
         public string[] Placeholders { get; set; } = new string[0];
         
-        public RegionInjectAttribute(string regionName)
+        public RegionInjectAttribute()
         {
-            FilePath = null;
-            RegionName = regionName ?? throw new ArgumentNullException(nameof(regionName));
-        }
-        
-        public RegionInjectAttribute(string regionName, params string[] placeholders)
-            : this(regionName)
-        {
-            Placeholders = placeholders ?? new string[0];
-        }
-        
-        public RegionInjectAttribute(string filePath, string regionName)
-        {
-            FilePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
-            RegionName = regionName ?? throw new ArgumentNullException(nameof(regionName));
-        }
-        
-        public RegionInjectAttribute(string filePath, string regionName, params string[] placeholders)
-            : this(filePath, regionName)
-        {
-            Placeholders = placeholders ?? new string[0];
         }
     }
 }";

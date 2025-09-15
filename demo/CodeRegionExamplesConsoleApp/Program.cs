@@ -15,8 +15,8 @@ using CodeInject;
 
 namespace CodeRegionExamplesConsoleApp;
 
-[RegionInject("./CodeRegionTemplateConsoleApp/Program.cs", "Show")]
-[RegionInject("./CodeRegionTemplateConsoleApp/Program.cs", "Show1","Show123","Show222")]
+[RegionInject(RegionName = "Show")]
+[RegionInject(RegionName = "Show1", Placeholders = new[] { "Show123", "Show222" })]
 internal partial class ExampleProgram
 {
     static void Main(string[] args)

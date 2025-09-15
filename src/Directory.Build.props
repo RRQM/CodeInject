@@ -15,9 +15,6 @@
 		<NoWarn>IDE0290;IDE0090;IDE0305;IDE0028;IDE0300;IDE0130;IDE0057</NoWarn>
 		<GenerateSatelliteAssemblies>true</GenerateSatelliteAssemblies>
 		<GenerateSatelliteAssembliesCore>true</GenerateSatelliteAssembliesCore>
-		<PackageOutputPath>$(SolutionDir)\Build\NugetPackages\Packages</PackageOutputPath>
-		<LogoFile>logo.png</LogoFile>
-		<ReadmeFile>Readme.md</ReadmeFile>
 		<!--<Nullable>enable</Nullable>-->
 	</PropertyGroup>
 </Project>

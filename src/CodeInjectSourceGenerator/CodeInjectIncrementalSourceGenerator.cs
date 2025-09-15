@@ -102,7 +102,10 @@ namespace CodeInject
                         }
                     }
 
-                    attributes.Add(new RegionInjectData(filePath, regionName, placeholders.ToArray()));
+                    // 获取属性的位置信息
+                    var attributeLocation = attributeData.ApplicationSyntaxReference?.GetSyntax().GetLocation() ?? Location.None;
+
+                    attributes.Add(new RegionInjectData(filePath, regionName, placeholders.ToArray(), attributeLocation));
                 }
 
                 if (attributes.Count == 0)
@@ -259,9 +262,9 @@ namespace CodeInject
                             "File read error",
                             $"Error reading additional file '{targetFile.Path}': {ex.Message}",
                             "CodeRegionGenerator",
-                            DiagnosticSeverity.Warning,
+                            DiagnosticSeverity.Error,
                             isEnabledByDefault: true),
-                        Location.None));
+                        attribute.Location));
                     return string.Empty;
                 }
             }
@@ -274,9 +277,9 @@ namespace CodeInject
                         "Template file not found",
                         $"Could not find template file: {attribute.FilePath}. Make sure the file is included as AdditionalFiles in the project that uses the source generator.",
                         "CodeRegionGenerator",
-                        DiagnosticSeverity.Warning,
+                        DiagnosticSeverity.Error,
                         isEnabledByDefault: true),
-                    Location.None));
+                    attribute.Location));
                 return string.Empty;
             }
 
@@ -289,9 +292,9 @@ namespace CodeInject
                         "Region not found",
                         $"Could not find region '{attribute.RegionName}' in file '{attribute.FilePath}'",
                         "CodeRegionGenerator",
-                        DiagnosticSeverity.Warning,
+                        DiagnosticSeverity.Error,
                         isEnabledByDefault: true),
-                    Location.None));
+                    attribute.Location));
                 return string.Empty;
             }
 
@@ -428,12 +431,14 @@ namespace CodeRegionSourceGenerator
             public string FilePath { get; }
             public string RegionName { get; }
             public string[] Placeholders { get; }
+            public Location Location { get; }
 
-            public RegionInjectData(string filePath, string regionName, string[] placeholders)
+            public RegionInjectData(string filePath, string regionName, string[] placeholders, Location location)
             {
                 FilePath = filePath;
                 RegionName = regionName;
                 Placeholders = placeholders;
+                Location = location;
             }
         }
     }

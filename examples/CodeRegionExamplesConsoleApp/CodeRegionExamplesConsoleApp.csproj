@@ -8,10 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CodeInject" Version="0.0.1">
+    <PackageReference Include="CodeInject" Version="0.0.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
 
+	<ItemGroup>
+		<AdditionalFiles Include="../CodeRegionTemplateConsoleApp/Program.cs" />
+	</ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 ﻿<Project>
 	<PropertyGroup>
-		<Version>0.0.1</Version>
+		<Version>0.0.5</Version>
 		<CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>preview</LangVersion>
@@ -20,10 +20,4 @@
 		<ReadmeFile>Readme.md</ReadmeFile>
 		<!--<Nullable>enable</Nullable>-->
 	</PropertyGroup>
-
-	<Target Name="CopyNuGetPackage" AfterTargets="Pack">
-		<Copy SourceFiles="$(PackageOutputPath)\$(PackageId).$(PackageVersion).nupkg"
-              DestinationFolder="D:\Nuget\local"
-              Condition="Exists('D:\Nuget\local')" />
-	</Target>
 </Project>

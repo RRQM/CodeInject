@@ -1,14 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>netstandard2.0;net462</TargetFrameworks>
 	  <!-- Development Dependencies Only -->
 	  <DevelopmentDependency>true</DevelopmentDependency>
 	  <IncludeSymbols>false</IncludeSymbols>
+	  <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CodeInjectSourceGenerator\CodeInjectSourceGenerator.csproj" PrivateAssets="all" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+    <ProjectReference Include="..\CodeInjectSourceGenerator\CodeInjectSourceGenerator.csproj" PrivateAssets="all" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 	<ItemGroup>
@@ -16,4 +17,22 @@
 		<None Include="..\CodeInjectSourceGenerator\bin\$(Configuration)\netstandard2.0\CodeInjectSourceGenerator.dll" PackagePath="analyzers\dotnet\cs" Pack="true" Visible="false" />
 	</ItemGroup>
 
+	<PropertyGroup Condition="'$(Configuration)'=='Release'">
+		<AssemblyOriginatorKeyFile>$(MSBuildProjectName).snk</AssemblyOriginatorKeyFile>
+		<SignAssembly>True</SignAssembly>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="logo.png" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+	</ItemGroup>
+
+	<Target Name="CopyNuGetPackage" AfterTargets="Pack">
+		<Copy SourceFiles="$(PackageOutputPath)\$(PackageId).$(PackageVersion).nupkg"
+              DestinationFolder="D:\Nuget\local"
+              Condition="Exists('D:\Nuget\local')" />
+	</Target>
 </Project>

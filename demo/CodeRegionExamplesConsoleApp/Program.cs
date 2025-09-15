@@ -20,6 +20,6 @@ internal partial class ExampleProgram
 {
     static void Main(string[] args)
     {
-        //Show();
+        Show();
     }
 }

@@ -29,15 +29,8 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // 获取项目中的源文件
-        var sourceFiles = context.SyntaxProvider
-            .CreateSyntaxProvider(
-                predicate: static (s, _) => s is CompilationUnitSyntax,
-                transform: static (ctx, _) => ctx)
-            .Where(static ctx => ctx.Node is CompilationUnitSyntax);
-
         // 添加 attribute 源码到消费项目
-        context.RegisterSourceOutput(sourceFiles.Collect(), (ctx, sources) =>
+        context.RegisterPostInitializationOutput((ctx) =>
         {
             var attributeSource = GetAttributeSourceFromEmbeddedResource();
             if (!string.IsNullOrEmpty(attributeSource))

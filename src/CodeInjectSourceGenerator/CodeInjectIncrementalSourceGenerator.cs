@@ -17,6 +17,7 @@ using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -130,8 +131,10 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
             var classSymbol = semanticModel.GetDeclaredSymbol(classDeclarationSyntax);
 
             if (classSymbol is null)
+            {
                 return null;
-
+            }
+            
             var attributes = new List<RegionInjectData>();
 
             foreach (var attributeData in classSymbol.GetAttributes())
@@ -157,33 +160,43 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
                 var placeholders = new List<string>();
 
                 // 从构造函数参数获取占位符
-                if (attributeData.ConstructorArguments.Length > 2)
+                // 检查是否使用了带 params string[] 的构造函数
+                if (attributeData.ConstructorArguments.Length >= 3)
                 {
-                    for (var i = 2; i < attributeData.ConstructorArguments.Length; i++)
+                    // 第3个参数是 params string[] placeholders
+                    var placeholdersArg = attributeData.ConstructorArguments[2];
+                    if (placeholdersArg.Kind == TypedConstantKind.Array && !placeholdersArg.IsNull)
                     {
-                        var value = attributeData.ConstructorArguments[i].Value?.ToString();
-                        if (!string.IsNullOrEmpty(value))
+                        var arrayValues = placeholdersArg.Values;
+                        foreach (var item in arrayValues)
                         {
-                            placeholders.Add(value);
+                            var stringValue = item.Value?.ToString();
+                            if (!string.IsNullOrEmpty(stringValue))
+                            {
+                                placeholders.Add(stringValue);
+                            }
                         }
                     }
                 }
 
-                // 从 Placeholders 属性获取占位符
-                foreach (var namedArgument in attributeData.NamedArguments)
+                // 如果构造函数中没有占位符，再从 Placeholders 属性获取
+                if (placeholders.Count == 0)
                 {
-                    if (namedArgument.Key == "Placeholders")
+                    foreach (var namedArgument in attributeData.NamedArguments)
                     {
-                        var value = namedArgument.Value;
-                        if (value.Kind == TypedConstantKind.Array && !value.IsNull)
+                        if (namedArgument.Key == "Placeholders")
                         {
-                            var arrayValues = value.Values;
-                            foreach (var item in arrayValues)
+                            var value = namedArgument.Value;
+                            if (value.Kind == TypedConstantKind.Array && !value.IsNull)
                             {
-                                var stringValue = item.Value?.ToString();
-                                if (!string.IsNullOrEmpty(stringValue))
+                                var arrayValues = value.Values;
+                                foreach (var item in arrayValues)
                                 {
-                                    placeholders.Add(stringValue);
+                                    var stringValue = item.Value?.ToString();
+                                    if (!string.IsNullOrEmpty(stringValue))
+                                    {
+                                        placeholders.Add(stringValue);
+                                    }
                                 }
                             }
                         }
@@ -217,11 +230,15 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
     {
         var namespaceDeclaration = classDeclaration.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
         if (namespaceDeclaration != null)
+        {
             return namespaceDeclaration.Name.ToString();
+        }
 
         var fileScopedNamespace = classDeclaration.Ancestors().OfType<FileScopedNamespaceDeclarationSyntax>().FirstOrDefault();
         if (fileScopedNamespace != null)
+        {
             return fileScopedNamespace.Name.ToString();
+        }
 
         return string.Empty;
     }
@@ -229,7 +246,9 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
     private static void Execute(ImmutableArray<ClassToGenerate> classes, ImmutableArray<AdditionalText> additionalFiles, SourceProductionContext context)
     {
         if (classes.IsDefaultOrEmpty)
+        {
             return;
+        }
 
         foreach (var classToGenerate in classes)
         {
@@ -285,7 +304,9 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
     private static string FormatInjectedCode(string code, string indentation)
     {
         if (string.IsNullOrEmpty(code))
+        {
             return string.Empty;
+        }
 
         var lines = code.Split(new[] { '\r', '\n' }, StringSplitOptions.None);
         var formattedLines = new List<string>();
@@ -453,7 +474,9 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
     private static string ProcessPlaceholders(string content, string[] placeholders)
     {
         if (placeholders.Length == 0)
+        {
             return content;
+        }
 
         var result = content;
 

@@ -26,4 +26,11 @@ internal class TemplateProgram
     }
     #endregion
 
+
+    #region Show1
+    public static void Show1()
+    {
+        Console.WriteLine("Show123");
+    }
+    #endregion
 }

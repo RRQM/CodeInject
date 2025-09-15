@@ -87,7 +87,9 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
             using (var stream = assembly.GetManifestResourceStream(targetResource))
             {
                 if (stream == null)
+                {
                     return null;
+                }
 
                 using (var reader = new StreamReader(stream, Encoding.UTF8))
                 {
@@ -135,16 +137,22 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
             foreach (var attributeData in classSymbol.GetAttributes())
             {
                 if (attributeData.AttributeClass?.Name != "RegionInjectAttribute")
+                {
                     continue;
+                }
 
                 if (attributeData.ConstructorArguments.Length < 2)
+                {
                     continue;
+                }
 
                 var filePath = attributeData.ConstructorArguments[0].Value?.ToString();
                 var regionName = attributeData.ConstructorArguments[1].Value?.ToString();
 
                 if (string.IsNullOrEmpty(filePath) || string.IsNullOrEmpty(regionName))
+                {
                     continue;
+                }
 
                 var placeholders = new List<string>();
 
@@ -155,7 +163,9 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
                     {
                         var value = attributeData.ConstructorArguments[i].Value?.ToString();
                         if (!string.IsNullOrEmpty(value))
+                        {
                             placeholders.Add(value);
+                        }
                     }
                 }
 
@@ -172,7 +182,9 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
                             {
                                 var stringValue = item.Value?.ToString();
                                 if (!string.IsNullOrEmpty(stringValue))
+                                {
                                     placeholders.Add(stringValue);
+                                }
                             }
                         }
                     }
@@ -185,7 +197,9 @@ public class CodeInjectIncrementalSourceGenerator : IIncrementalGenerator
             }
 
             if (attributes.Count == 0)
+            {
                 return null;
+            }
 
             return new ClassToGenerate(
                 classSymbol.Name,

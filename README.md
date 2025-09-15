@@ -1,5 +1,10 @@
 ﻿# CodeInject - Code Region Source Generator
 
+[![Build and Publish](https://github.com/RRQM/CodeInject/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/RRQM/CodeInject/actions/workflows/nuget-publish.yml)
+[![Release](https://github.com/RRQM/CodeInject/actions/workflows/release.yml/badge.svg)](https://github.com/RRQM/CodeInject/actions/workflows/release.yml)
+[![NuGet Version](https://img.shields.io/nuget/v/CodeInject)](https://www.nuget.org/packages/CodeInject/)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/CodeInject)](https://www.nuget.org/packages/CodeInject/)
+
 A powerful source generator that injects code regions from template files into partial classes at compile time.
 
 ## ✨ Features
@@ -226,13 +231,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆚 Comparison with Other Solutions
 
-| Feature | CodeInject | T4 Templates | Manual Coding |
-|---------|------------|--------------|---------------|
-| Compile-time generation | ✅ | ❌ | ❌ |
-| Incremental compilation | ✅ | ❌ | ✅ |
-| IDE support | ✅ | ⚠️ | ✅ |
-| Learning curve | Low | High | Low |
-| Flexibility | High | High | Low |
+| Feature                 | CodeInject | T4 Templates | Manual Coding |
+| ----------------------- | ---------- | ------------ | ------------- |
+| Compile-time generation | ✅          | ❌            | ❌             |
+| Incremental compilation | ✅          | ❌            | ✅             |
+| IDE support             | ✅          | ⚠️            | ✅             |
+| Learning curve          | Low        | High         | Low           |
+| Flexibility             | High       | High         | Low           |
 
 ## 📞 Support
 

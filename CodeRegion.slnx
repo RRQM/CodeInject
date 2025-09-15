@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/.Solution/">
+    <File Path="Directory.Build.props" />
+  </Folder>
+  <Folder Name="/demo/">
+    <Project Path="demo/CodeRegionExamplesConsoleApp/CodeRegionExamplesConsoleApp.csproj" />
+    <Project Path="demo/CodeRegionTemplateConsoleApp/CodeRegionTemplateConsoleApp.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/CodeInject/CodeInject.csproj" />
+    <Project Path="src/CodeInjectSourceGenerator/CodeInjectSourceGenerator.csproj" />
+  </Folder>
+</Solution>

@@ -1,7 +1,0 @@
-<Solution>
-  <Folder Name="/.Solution/">
-    <File Path="Directory.Build.props" />
-  </Folder>
-  <Project Path="CodeInject/CodeInject.csproj" Id="3ebe2c53-1cc6-486f-bb68-4959137ee37f" />
-  <Project Path="CodeInjectSourceGenerator/CodeInjectSourceGenerator.csproj" />
-</Solution>

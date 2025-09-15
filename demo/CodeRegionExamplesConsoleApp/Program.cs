@@ -10,7 +10,8 @@
 // 感谢您的下载和使用
 // ------------------------------------------------------------------------------
 
-using CodeRegionSourceGenerator;
+
+using CodeInject;
 
 namespace CodeRegionExamplesConsoleApp;
 
@@ -19,6 +20,6 @@ internal partial class ExampleProgram
 {
     static void Main(string[] args)
     {
-        Show();
+        //Show();
     }
 }

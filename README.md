@@ -1,5 +1,7 @@
 ﻿# CodeInject - Code Region Source Generator
 
+English | [简体中文](README.zh-CN.md)
+
 [![Build and Publish](https://github.com/RRQM/CodeInject/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/RRQM/CodeInject/actions/workflows/nuget-publish.yml)
 [![Release](https://github.com/RRQM/CodeInject/actions/workflows/release.yml/badge.svg)](https://github.com/RRQM/CodeInject/actions/workflows/release.yml)
 [![NuGet Version](https://img.shields.io/nuget/v/CodeInject)](https://www.nuget.org/packages/CodeInject/)
@@ -63,7 +65,7 @@ public async Task<{ReturnType}> Create{EntityName}Async({ReturnType} entity)
 ```csharp
 using CodeInject;
 
-[RegionInject(FilePath = "Templates/ApiTemplate.cs", RegionName = "ApiMethods", 
+[RegionInject(FileName = "Templates/ApiTemplate.cs", RegionName = "ApiMethods", 
     Placeholders = new[] { "ReturnType", "User", "EntityName", "User" })]
 public partial class UserService
 {
@@ -104,11 +106,11 @@ partial class UserService
 ### Multiple Injections
 
 ```csharp
-[RegionInject(FilePath = "Templates/CrudTemplate.cs", RegionName = "CreateMethods", 
+[RegionInject(FileName = "Templates/CrudTemplate.cs", RegionName = "CreateMethods", 
     Placeholders = new[] { "Entity", "Product" })]
-[RegionInject(FilePath = "Templates/CrudTemplate.cs", RegionName = "UpdateMethods", 
+[RegionInject(FileName = "Templates/CrudTemplate.cs", RegionName = "UpdateMethods", 
     Placeholders = new[] { "Entity", "Product" })]
-[RegionInject(FilePath = "Templates/ValidationTemplate.cs", RegionName = "Validators", 
+[RegionInject(FileName = "Templates/ValidationTemplate.cs", RegionName = "Validators", 
     Placeholders = new[] { "Type", "Product" })]
 public partial class ProductService
 {
@@ -118,7 +120,7 @@ public partial class ProductService
 
 ### Search All Files for Region
 
-If you don't specify the `FilePath`, the generator will search all available files for the specified region:
+If you don't specify the `FileName`, the generator will search all available files for the specified region:
 
 ```csharp
 [RegionInject(RegionName = "CommonMethods")]
@@ -131,7 +133,7 @@ public partial class BaseService
 ### Using Property Initializers
 
 ```csharp
-[RegionInject(FilePath = "Templates/ApiTemplate.cs", RegionName = "ApiMethods", 
+[RegionInject(FileName = "Templates/ApiTemplate.cs", RegionName = "ApiMethods", 
     Placeholders = new[] { "ReturnType", "Order", "EntityName", "Order" })]
 public partial class OrderService
 {
@@ -192,7 +194,7 @@ public async Task<ActionResult<{EntityType}>> Create{EntityName}({EntityType} {e
 
 Usage:
 ```csharp
-[RegionInject(FilePath = "Templates/ControllerTemplate.cs", RegionName = "CrudActions",
+[RegionInject(FileName = "Templates/ControllerTemplate.cs", RegionName = "CrudActions",
     Placeholders = new[] { "EntityType", "Product", "EntityName", "Product", "entityName", "product" })]
 public partial class ProductController : ControllerBase
 {
@@ -226,7 +228,7 @@ public async Task<{EntityType}> Create{EntityName}Async({EntityType} entity)
 
 Usage:
 ```csharp
-[RegionInject(FilePath = "Templates/RepositoryTemplate.cs", RegionName = "RepositoryMethods",
+[RegionInject(FileName = "Templates/RepositoryTemplate.cs", RegionName = "RepositoryMethods",
     Placeholders = new[] { "EntityType", "User", "EntityName", "User" })]
 public partial class UserRepository
 {

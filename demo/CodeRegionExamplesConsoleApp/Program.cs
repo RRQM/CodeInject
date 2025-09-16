@@ -15,6 +15,7 @@ using CodeInject;
 
 namespace CodeRegionExamplesConsoleApp;
 
+[RegionInject(RegionName = "ShowMyClass")]
 [RegionInject(RegionName = "Show")]
 [RegionInject(RegionName = "Show1", Placeholders = new[] { "Show123", "Show222" })]
 internal partial class ExampleProgram
@@ -23,5 +24,17 @@ internal partial class ExampleProgram
     {
         Show();
         Show1();
+        ShowMyClass();
     }
+}
+
+class MyClass
+{
+    #region ShowMyClass
+    public static void ShowMyClass()
+    {
+
+    }
+    #endregion
+
 }

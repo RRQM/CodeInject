@@ -1,5 +1,12 @@
 ﻿# CodeInject - 代码区域源生成器
 
+[English](README.md) | 简体中文
+
+[![Build and Publish](https://github.com/RRQM/CodeInject/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/RRQM/CodeInject/actions/workflows/nuget-publish.yml)
+[![Release](https://github.com/RRQM/CodeInject/actions/workflows/release.yml/badge.svg)](https://github.com/RRQM/CodeInject/actions/workflows/release.yml)
+[![NuGet Version](https://img.shields.io/nuget/v/CodeInject)](https://www.nuget.org/packages/CodeInject/)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/CodeInject)](https://www.nuget.org/packages/CodeInject/)
+
 一个强大的源生成器，可在编译时将模板文件中的代码区域注入到部分类中。
 
 ## ✨ 特性
@@ -56,11 +63,10 @@ public async Task<{ReturnType}> Create{EntityName}Async({ReturnType} entity)
 ### 2. 应用特性
 
 ```csharp
-using CodeRegionSourceGenerator;
+using CodeInject;
 
-[RegionInject("Templates/ApiTemplate.cs", "ApiMethods", 
-    "ReturnType", "User", 
-    "EntityName", "User")]
+[RegionInject(FileName = "Templates/ApiTemplate.cs", RegionName = "ApiMethods", 
+    Placeholders = new[] { "ReturnType", "User", "EntityName", "User" })]
 public partial class UserService
 {
     private readonly IRepository _repository;
@@ -100,19 +106,34 @@ partial class UserService
 ### 多重注入
 
 ```csharp
-[RegionInject("Templates/CrudTemplate.cs", "CreateMethods", "Entity", "Product")]
-[RegionInject("Templates/CrudTemplate.cs", "UpdateMethods", "Entity", "Product")]
-[RegionInject("Templates/ValidationTemplate.cs", "Validators", "Type", "Product")]
+[RegionInject(FileName = "Templates/CrudTemplate.cs", RegionName = "CreateMethods", 
+    Placeholders = new[] { "Entity", "Product" })]
+[RegionInject(FileName = "Templates/CrudTemplate.cs", RegionName = "UpdateMethods", 
+    Placeholders = new[] { "Entity", "Product" })]
+[RegionInject(FileName = "Templates/ValidationTemplate.cs", RegionName = "Validators", 
+    Placeholders = new[] { "Type", "Product" })]
 public partial class ProductService
 {
     // 多个代码区域将被注入
 }
 ```
 
-### 使用 Placeholders 属性
+### 搜索所有文件中的区域
+
+如果不指定 `FileName`，生成器将在所有可用文件中搜索指定的区域：
 
 ```csharp
-[RegionInject("Templates/ApiTemplate.cs", "ApiMethods", 
+[RegionInject(RegionName = "CommonMethods")]
+public partial class BaseService
+{
+    // 生成器将在所有文件中搜索"CommonMethods"区域
+}
+```
+
+### 使用属性初始化器
+
+```csharp
+[RegionInject(FileName = "Templates/ApiTemplate.cs", RegionName = "ApiMethods", 
     Placeholders = new[] { "ReturnType", "Order", "EntityName", "Order" })]
 public partial class OrderService
 {
@@ -171,6 +192,16 @@ public async Task<ActionResult<{EntityType}>> Create{EntityName}({EntityType} {e
 #endregion
 ```
 
+使用方法：
+```csharp
+[RegionInject(FileName = "Templates/ControllerTemplate.cs", RegionName = "CrudActions",
+    Placeholders = new[] { "EntityType", "Product", "EntityName", "Product", "entityName", "product" })]
+public partial class ProductController : ControllerBase
+{
+    // 生成的 CRUD 操作将被注入到这里
+}
+```
+
 ### 2. 仓储模式模板
 
 ```csharp
@@ -195,6 +226,15 @@ public async Task<{EntityType}> Create{EntityName}Async({EntityType} entity)
 #endregion
 ```
 
+使用方法：
+```csharp
+[RegionInject(FileName = "Templates/RepositoryTemplate.cs", RegionName = "RepositoryMethods",
+    Placeholders = new[] { "EntityType", "User", "EntityName", "User" })]
+public partial class UserRepository
+{
+    // 生成的仓储方法将被注入到这里
+}
+
 ## 🔍 诊断信息
 
 源生成器提供以下诊断信息：
@@ -205,10 +245,11 @@ public async Task<{EntityType}> Create{EntityName}Async({EntityType} entity)
 
 ## 💡 最佳实践
 
-1. **组织模板文件**: 将模板文件放在专门的 `Templates` 文件夹中
+1. **组织模板**: 将模板文件保存在专门的 `Templates` 文件夹中
 2. **命名约定**: 使用描述性的区域名称，如 `CrudMethods`、`ValidationRules`
-3. **占位符命名**: 使用大写的占位符名称，如 `ENTITY_NAME`、`RETURN_TYPE`
+3. **占位符命名**: 使用一致的占位符名称，如 `EntityType`、`EntityName`
 4. **模块化**: 将相关功能分组到不同的区域中
+5. **基于属性的语法**: 使用新的基于属性的初始化方式以获得更好的可读性
 
 ## 📋 系统要求
 
@@ -226,21 +267,21 @@ public async Task<{EntityType}> Create{EntityName}Async({EntityType} entity)
 
 ## 🆚 与其他方案对比
 
-| 特性 | CodeInject | T4 模板 | 手动编写 |
-|------|------------|---------|----------|
-| 编译时生成 | ✅ | ❌ | ❌ |
-| 增量编译 | ✅ | ❌ | ✅ |
-| IDE 支持 | ✅ | ⚠️ | ✅ |
-| 学习成本 | 低 | 高 | 低 |
-| 灵活性 | 高 | 高 | 低 |
+| 特性       | CodeInject | T4 模板 | 手动编写 |
+| ---------- | ---------- | ------- | -------- |
+| 编译时生成 | ✅          | ❌       | ❌        |
+| 增量编译   | ✅          | ❌       | ✅        |
+| IDE 支持   | ✅          | ⚠️       | ✅        |
+| 学习成本   | 低         | 高      | 低       |
+| 灵活性     | 高         | 高      | 低       |
 
 ## 📞 支持
 
-如果遇到问题，请：
+如果遇到问题：
 
-1. 检查[常见问题](https://github.com/yourusername/CodeInject/wiki/FAQ)
-2. 搜索[已有问题](https://github.com/yourusername/CodeInject/issues)
-3. 创建[新问题](https://github.com/yourusername/CodeInject/issues/new)
+1. 检查 [FAQ](https://github.com/yourusername/CodeInject/wiki/FAQ)
+2. 搜索 [已有问题](https://github.com/yourusername/CodeInject/issues)
+3. 创建 [新问题](https://github.com/yourusername/CodeInject/issues/new)
 
 ---
 

@@ -3,7 +3,6 @@
 [English](README.md) | 简体中文
 
 [![Build and Publish](https://github.com/RRQM/CodeInject/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/RRQM/CodeInject/actions/workflows/nuget-publish.yml)
-[![Release](https://github.com/RRQM/CodeInject/actions/workflows/release.yml/badge.svg)](https://github.com/RRQM/CodeInject/actions/workflows/release.yml)
 [![NuGet Version](https://img.shields.io/nuget/v/CodeInject)](https://www.nuget.org/packages/CodeInject/)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/CodeInject)](https://www.nuget.org/packages/CodeInject/)
 

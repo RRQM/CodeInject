@@ -45,6 +45,9 @@ jobs:
     - name: Pack NuGet package
       run: dotnet pack ${{ env.PROJECT_PATH }} --configuration Release --no-build --output ./packages
 
+    - name: List packages for debugging
+      run: Get-ChildItem -Path "./packages" -Recurse
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
@@ -55,16 +58,22 @@ jobs:
 
     - name: Publish to NuGet.org
       run: |
-        dotnet nuget push ./packages/*.nupkg `
-          --api-key ${{ secrets.NUGET_API_KEY }} `
-          --source https://api.nuget.org/v3/index.json `
-          --skip-duplicate
+        $nupkgFiles = Get-ChildItem -Path "./packages" -Filter "*.nupkg"
+        foreach ($file in $nupkgFiles) {
+          dotnet nuget push $file.FullName `
+            --api-key ${{ secrets.NUGET_API_KEY }} `
+            --source https://api.nuget.org/v3/index.json `
+            --skip-duplicate
+        }
 
     - name: Publish to GitHub Packages
       run: |
-        dotnet nuget push ./packages/*.nupkg `
-          --api-key ${{ secrets.GITHUB_TOKEN }} `
-          --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json `
-          --skip-duplicate
+        $nupkgFiles = Get-ChildItem -Path "./packages" -Filter "*.nupkg"
+        foreach ($file in $nupkgFiles) {
+          dotnet nuget push $file.FullName `
+            --api-key ${{ secrets.GITHUB_TOKEN }} `
+            --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json `
+            --skip-duplicate
+        }
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

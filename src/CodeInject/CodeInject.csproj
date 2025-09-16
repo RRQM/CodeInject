@@ -1,11 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net462</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
 	  <!-- Development Dependencies Only -->
 	  <DevelopmentDependency>true</DevelopmentDependency>
 	  <IncludeSymbols>false</IncludeSymbols>
 	  <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+	  <!-- 配置为纯源生成器包，不生成dll -->
+	  <IncludeBuildOutput>false</IncludeBuildOutput>
+	  <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+	  <NoPackageAnalysis>true</NoPackageAnalysis>
 	  <!-- Package metadata -->
 	  <PackageOutputPath>$(SolutionDir)\Build\NugetPackages\Packages</PackageOutputPath>
 	  <PackageIcon>logo.png</PackageIcon>

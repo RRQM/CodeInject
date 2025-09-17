@@ -18,7 +18,7 @@ namespace CodeInject
     /// 用于指定要注入的文件名、区域名称和占位符的特性。
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-    public sealed class RegionInjectAttribute : Attribute
+    internal sealed class RegionInjectAttribute : Attribute
     {
         /// <summary>
         /// 获取或设置要注入的文件名。如果为null或空字符串，则搜索所有可用文件。

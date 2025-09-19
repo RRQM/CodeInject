@@ -10,6 +10,7 @@
 // 感谢您的下载和使用
 // ------------------------------------------------------------------------------
 
+
 namespace CodeRegionTemplateConsoleApp;
 
 internal class TemplateProgram
@@ -31,6 +32,14 @@ internal class TemplateProgram
     public static void Show1()
     {
         Console.WriteLine("Show123");
+    }
+    #endregion
+
+    #region ShowDataTable
+    public static System.Data.DataTable ShowDataTable()
+    {
+        var table = new System.Data.DataTable();
+        return table;
     }
     #endregion
 }

@@ -18,6 +18,7 @@ namespace CodeRegionExamplesConsoleApp;
 [RegionInject(RegionName = "ShowMyClass")]
 [RegionInject(RegionName = "Show")]
 [RegionInject(RegionName = "Show1", Placeholders = new[] { "Show123", "Show222" })]
+[RegionInject(RegionName = "ShowDataTable")]
 internal partial class ExampleProgram
 {
     static void Main(string[] args)
@@ -25,6 +26,7 @@ internal partial class ExampleProgram
         Show();
         Show1();
         ShowMyClass();
+        ShowDataTable();
     }
 }
 
